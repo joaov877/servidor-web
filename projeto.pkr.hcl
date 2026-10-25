@@ -1,3 +1,4 @@
+
 packer {
   required_plugins {
     docker = {
@@ -10,30 +11,36 @@ packer {
 source "docker" "ubuntu_jammy" {
   image  = "ubuntu:jammy"
   commit = true
+
+  changes = [
+    "EXPOSE 80",
+    "CMD [\"apachectl\", \"-D\", \"FOREGROUND\"]"
+  ]
 }
 
 build {
-  name    = "meu-projeto-packer"
+  name    = "meu-apache-packer"
   sources = ["source.docker.ubuntu_jammy"]
 
-  # 1. Provisioner FILE para copiar o ficheiro local para a imagem
+  # 1. Instalar o Apache e criar o diretório do site
+  provisioner "shell" {
+    inline = [
+      "export DEBIAN_FRONTEND=noninteractive",
+      "apt-get update",
+      "apt-get install -y apache2",
+      "mkdir -p /var/www/html"
+    ]
+  }
+
+  # 2. Copiar o HTML depois da instalação do Apache
   provisioner "file" {
     source      = "index.html"
     destination = "/var/www/html/index.html"
   }
 
-  # 2. Provisioner SHELL para instalar o apache2
-  provisioner "shell" {
-    inline = [
-      "export DEBIAN_FRONTEND=noninteractive",
-      "apt-get update",
-      "apt-get install -y apache2"
-    ]
-  }
-
-  # 3. POST-PROCESSOR para renomear/taggear a imagem final
+  # 3. Gerar a imagem final com o nome exigido
   post-processor "docker-tag" {
-    repository = "meu-projeto-packer"
+    repository = "meu-apache-packer"
     tags       = ["latest"]
   }
 }
